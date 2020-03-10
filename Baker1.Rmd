@@ -1,0 +1,520 @@
+---
+title: "Will the Real Baker Mayfield Please Stand Up?"
+subtitle: "Part 1: A Statistical Timeline"
+author: "Clay Girdner"
+date: "3/5/2020"
+output: html_document
+---
+Many adjectives can be used to describe Baker Mayfield and his brief NFL career, but few would use the word “boring” when talking about the fiery young quarterback.
+
+The drama started long before Mayfield made his NFL debut, hell, even before he was selected by the Browns in the 2018 draft. Following a stellar college career, analyst opinions regarding the Oklahoma prospect were famously split – ranging from “undraftable” to surefire first overall pick (where he was ultimately taken). Since then, Baker has somehow managed to become even more polarizing. Through two NFL seasons, Baker’s erratic on-field performances and controversial off-field comments/decisions have provided supporters and detractors alike with more than enough ammunition to maintain their entrenched positions regarding Mr. Mayfield.
+
+Whether you like the guy or not, for whatever reason, I think it’s safe to say that Baker’s play on the field has been a rollercoaster to this point. Just take a look at his weekly performance chart through 30 NFL games – with all its swings and undulations, I’d say it more closely resembles a WW1 battlefield than a promising start to an NFL career.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(nflscrapR)
+library(tidyverse)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(ggimage)
+library(ggalt)
+
+# mirror of PFF's plotting theme
+theme_pff <- theme_minimal() + 
+    theme(plot.title = element_text(face = "bold"),
+          axis.title = element_text(face = "bold"),
+          plot.background = element_rect(fill ="#F0F0F0", color = "#F0F0F0"),
+          panel.background = element_rect(fill = "#F0F0F0", color = "#F0F0F0"),
+          panel.border = element_blank(),
+          panel.grid.major = element_line(colour = "#E3E3E3"),
+          panel.grid.minor = element_blank(),
+          legend.position = "none")
+
+# Load in data, apply Ben Baldwin transformation, trim to passes/non spikes
+load.transform.trim <- function(season){
+    
+    # Read in pbp and game data and join them on game_id
+    pbp <- read_csv(url(paste0("https://github.com/ryurko/nflscrapR-data/raw/master/play_by_play_data/regular_season/reg_pbp_", season,".csv")))
+    games <- read_csv(url(paste0("https://raw.githubusercontent.com/ryurko/nflscrapR-data/master/games_data/regular_season/reg_games_", season,".csv")))
+    pbp <- left_join(pbp, games[,c("game_id", "type", "season", "week")],
+                     by="game_id")
+    
+    # Ben Baldwin transformation
+    rp <- pbp %>%
+        # grab only penalties, pass, and run plays
+        filter(!is.na(epa),
+               play_type == "no_play" |
+                   play_type == "pass" | 
+                   play_type == "run") %>%
+        # create pass, rush and success columns
+        # use information from desc column to determine if penalty plays were run or pass
+        mutate(pass = if_else(str_detect(desc, "(pass)|(sacked)|(scramble)"),
+                              1, 0),
+               rush = if_else(str_detect(desc,
+                                         "(left end)|(left tackle)|(left guard)|(up the middle)|(right guard)|(right tackle)|(right end)") &
+                                  pass == 0, 1, 0),
+               success = ifelse(epa > 0, 1, 0)) %>%
+        # filter to only pass or rush plays
+        filter(pass == 1 | rush == 1) %>%
+        # Again, use desc to pull out player names on penalty plays
+        mutate(passer_player_name = ifelse(play_type == "no_play"
+                                           & pass == 1,
+                                           str_extract(desc, "(?<=\\s)[A-Z][a-z]*\\.\\s?[A-Z][A-z]+(\\s(I{2,3})|(IV))?(?=\\s((pass)|(sack)|(scramble)))"),
+                                           passer_player_name),
+               receiver_player_name = ifelse(play_type == "no_play" &
+                                                 str_detect(desc, "pass"),
+                                             str_extract(desc,
+                                                    "(?<=to\\s)[A-Z][a-z]*\\.\\s?[A-Z][A-z]+(\\s(I{2,3})|(IV))?"),
+                                             receiver_player_name),
+               rusher_player_name = ifelse(play_type == "no_play" 
+                                           & rush == 1,
+                                           str_extract(desc, "(?<=\\s)[A-Z][a-z]*\\.\\s?[A-Z][A-z]+(\\s(I{2,3})|(IV))?(?=\\s((left end)|(left tackle)|(left guard)|      (up the middle)|(right guard)|(right tackle)|(right end)))"),
+                                           rusher_player_name)) %>%
+        mutate(name = if_else(!is.na(passer_player_name),
+                              passer_player_name,
+                              rusher_player_name),
+               rusher = rusher_player_name,
+               receiver = receiver_player_name,
+               play = 1)
+    
+    # trim to passing data
+    pass_data <- filter(rp, pass==1 & qb_spike==0)
+    
+    return(pass_data)
+}
+
+
+# Function to aggregate a given set of QB data
+aggup <- function(data) {
+    grouped <- group_by(data, name, posteam)
+    summed <- summarize(grouped,
+                        dropbacks = sum(pass),
+                        attempts = sum(pass_attempt),
+                        games = n_distinct(game_id),
+                        YPA = sum(yards_gained)/attempts,
+                        comp_percentage = sum(complete_pass)/attempts,
+                        YPG = sum(yards_gained)/games,
+                        AYPA = sum(air_yards, na.rm = TRUE)/attempts,
+                        epa_per_dropback = sum(epa)/dropbacks,
+                        TD_rate = sum(pass_touchdown)/dropbacks,
+                        INT_rate = sum(interception)/dropbacks,
+                        sack_rate = sum(sack)/dropbacks)
+    # Join team colors
+    summed <- left_join(summed, nflteams, by = c("posteam" = "abbr"))
+    
+    return(summed)
+}
+
+# Load in passing data for 2018/2019 and combine
+pass_18 <- load.transform.trim(season=2018)
+pass_19 <- load.transform.trim(season=2019)
+pass_both <- rbind(pass_18, pass_19)
+```
+
+```{r epa_both, echo=FALSE}
+# Filter out Baker
+bake_both <- filter(pass_both, name=="B.Mayfield")
+
+# Convert to factors
+bake_both$season = factor(bake_both$season)
+bake_both$week = factor(bake_both$week)
+
+# League mean epa per dropback
+mean_epa_both <- mean(pass_both$epa)
+
+# Aggregate EPA by week
+bake_both_agg <- bake_both %>%
+    group_by(season, week, defteam) %>%
+    summarize(dropbacks = sum(pass),
+              epa = sum(epa),
+              epa_per_db = epa/dropbacks)
+
+nfl_logos_df <- read_csv("https://raw.githubusercontent.com/ClayGirdner/Baker/master/nfl_team_logos.csv")
+bake_both_agg <- left_join(bake_both_agg,
+                           nfl_logos_df, by = c("defteam" = "team_code"))
+
+# Plot bar chart
+epa_both <- bake_both_agg %>%
+    ggplot(aes(x = week, y = epa_per_db)) +
+    geom_hline(yintercept = mean_epa_both,
+               color = "black", linetype = "dashed", alpha = 0.5) +
+    geom_text(data = filter(bake_both_agg, season == 2018),
+              label = "NFL Average", x = 6.0, y = 0.6, size = 3) +
+    geom_segment(data = filter(bake_both_agg, season == 2018),
+                 x = 6.0, y = 0.55, xend = 6.0, yend = mean_epa_both + 0.03,
+                 arrow = arrow(length = unit(0.2, "cm"))) +
+    geom_col(aes(fill = if_else(epa_per_db > 0 , "green", "red"),
+                 color = "black")) +
+    geom_image(data = filter(bake_both_agg, epa_per_db > 0),
+               aes(image=url, y = epa_per_db + 0.075),
+               size = 0.05) +
+    geom_image(data = filter(bake_both_agg, epa_per_db < 0),
+               aes(image=url, y = epa_per_db - 0.075),
+               size = 0.05) +
+    scale_fill_identity() + 
+    scale_color_identity() +
+    facet_grid(. ~ season, switch="x") +
+    theme_pff +
+    theme(panel.grid=element_blank(),
+          strip.placement="outside") +
+    labs(title = "Mr. Mayfield's Wild Ride",
+         subtitle = "EPA per dropback",
+         caption = "data from nflscrapR",
+         x = "Week",
+         y = NULL)
+
+epa_both
+```
+
+```{r verdun, echo=FALSE, fig.cap="[modern photo of Verdun, France]", out.width = "600px"}
+knitr::include_graphics("Images/verdun.jpg")
+```
+
+Statistically speaking, Mayfield has been one of the most inconsistent quarterbacks in the NFL on both a week-by-week and play-by-play basis since entering the league in 2018 (according to expected points added, or EPA). In fact, only three other qualifying quarterbacks surpass Baker when it comes to per game volatility over this period: famously inconsistent journeyman Ryan Fitzpatrick, suddenly reemergent Ryan Tannehill, and Lamar Jackson who, although inconsistent, boasts a much higher baseline performance than Mr. Mayfield. 
+
+```{r vol_scatter, echo=FALSE}
+# play by play standard deviation
+sd_pbp <- pass_both %>%
+    group_by(name) %>%
+    summarize(pbp = sd(epa))
+
+# game by game standard deviation
+sd_gbg <- pass_both %>%
+    group_by(name, season, week) %>%
+    summarize(dropbacks = sum(pass),
+              epa = sum(epa),
+              epa_per_db = epa/dropbacks) %>%
+    filter(dropbacks >= 10) 
+
+# combine them
+sd_both <- sd_gbg %>%
+    group_by(name) %>%
+    summarize(games = sum(!is.na(name)),
+              gbg = sd(epa_per_db)) %>%
+    filter(games > 16) %>%
+    left_join(sd_pbp, by = "name") %>%
+    left_join(unique(pass_19[, c("name", "posteam")]), by = "name") %>%
+    left_join(nflteams, by = c("posteam" = "abbr"))
+
+# Plot scatter
+vol_scatter <- sd_both %>%
+    ggplot(aes(x = gbg, y = pbp, label=name, color=primary)) +
+    geom_point(data = filter(sd_both, !grepl("B.Mayfield", name)),
+               alpha = 0.5) +
+    geom_point(data = filter(sd_both, grepl("B.Mayfield", name))) +
+    # we need this to assign colors
+    scale_color_identity() +
+    # Baker's label
+    geom_text_repel(data = filter(sd_both, grepl("B.Mayfield", name)),
+                    size = 6, hjust = 1, nudge_x = 0.04, fontface="bold") +
+    # add labels for set of other players
+    geom_text_repel(data = subset(sd_both, !grepl("Mayfield", name))) +
+    labs(x = "Per Game (EPA/Dropback)",
+         y = "Per Play (EPA)",
+         caption = "data from nflscrapR\nminimum 17 games with at least 10 dropbacks",
+         title = "Quarterback Volatility Around the NFL",
+         subtitle = "standard deviation, 2018-2019") +
+    # Pff theme
+    theme_pff +
+    # cosmetic adjustments
+    theme(panel.grid=element_blank())
+
+vol_scatter
+```
+
+In the following paragraphs, I will attempt to tease some signal from the noise that has defined Baker’s young NFL career by providing a statistical timeline of Baker’s young NFL career. In my next writeup (Part 2: An Explanatory Analysis) I will dive into the X’s and O’s and try to understand *why* Mayfield’s play seems to vary so much before gazing into my crystal ball to predict how the new QB/coach marriage of Mayfield and Stefanski will fare in the upcoming season.
+
+However, before I get too far, I would like to give a big shoutout to Brett Kollmann of Twitter/YouTube fame and his video “The Ballad of Baker Mayfield” for inspiring me to write this piece. Mr. Kollmann regularly produces top notch NFL analysis and I would highly recommend checking out some of his work if you’re interested in gaining a deeper understanding of this great game!
+
+## 2018:
+Viewing the full season without any context, one would get the impression that Baker had average/unremarkable 2018 season, ranking near the middle of the QB pack in most passing stats. However, in reality, Mayfield’s 2018 campaign saw him struggle mightily getting started before settling into his groove and finishing the season among elite company.
+
+```{r scatter_2018, echo=FALSE}
+# Split out Baker's early season and late season data
+bake_early <- pass_18 %>%
+    filter(name=="B.Mayfield" & week < 9)
+bake_late <- pass_18 %>%
+    filter(name=="B.Mayfield" & week > 8)
+
+# Aggregate baker's stats for these two periods
+bake_early_agg <- aggup(bake_early)
+bake_late_agg <- aggup(bake_late)
+# Rename
+bake_early_agg$name <- "Mayfield\nWeeks 1-8"
+bake_late_agg$name <- "Mayfield\nWeeks 9-17"
+
+# Aggregate the full season data for nfl qb's (including baker)
+# Filter out guys with fewer than x dropbacks
+qbs_18 <- aggup(pass_18)
+qbs_18 <- filter(qbs_18, dropbacks>=100)
+
+# Rename Baker
+qbs_18$name <- if_else(qbs_18$name == "B.Mayfield", 
+                   "Mayfield\nFull Season", qbs_18$name)
+
+# Caclulate means
+mean_comp <- mean(qbs_18$comp_percentage)
+mean_YPA <- mean(qbs_18$YPA)
+
+# Filter out even more to make for easier viewing
+qbs_18 <- filter(qbs_18, dropbacks>=350)
+
+# Append other Baker aggregates to qbs
+qbs_18 <- rbind(qbs_18, bake_early_agg, bake_late_agg)
+
+# Plot scatter
+scatter_2018 <- qbs_18 %>%
+    ggplot(aes(x = YPA, y = comp_percentage, label=name, color=primary)) +
+    # Notice that color/size inside aes()
+    geom_point(data = filter(qbs_18, !grepl("Weeks | Season", name))) +
+    geom_point(data = filter(qbs_18, grepl("Weeks | Season", name))) +
+    # we need this to assign colors and sizes
+    scale_color_identity() +
+    scale_size_identity() + 
+    geom_text_repel(data = filter(qbs_18, grepl("Full Season", name)),
+                    size=5,
+                    fontface="bold",
+                    nudge_x = 0.8,
+                    nudge_y = -0.05,
+                    segment.color = "black") +
+    geom_text_repel(data = filter(qbs_18, grepl("Weeks 1-8", name)),
+                    size=5,
+                    fontface="bold",
+                    nudge_x = 0.0,
+                    nudge_y = -0.03,
+                    segment.color = "black") +
+    geom_text_repel(data = filter(qbs_18, grepl("Weeks 9-17", name)),
+                    size=5,
+                    fontface="bold",
+                    nudge_x = 0.0,
+                    nudge_y = 0.05,
+                    segment.color = "black") +
+    # add labels for set of other players
+    geom_text_repel(data = subset(qbs_18, !grepl("Mayfield", name))) +
+    # reference lines with mean for each variable
+    geom_hline(aes(yintercept = mean_comp),
+               color = "red", linetype = "dashed", alpha=0.5) +
+    geom_vline(aes(xintercept =  mean_YPA),
+               color = "red", linetype = "dashed", alpha=0.5) +
+    # plot labels
+    labs(x = "Yards per Attempt",
+         y = "Completion Percentage",
+         caption = "data from nflscrapR",
+         title = "2018: Tale of Two Halves",
+         subtitle = "Baker vs The Field (350+ dropbacks)") +
+    # Pff theme
+    theme_pff +
+    # cosmetic adjustments
+    theme(panel.grid=element_blank())
+
+scatter_2018
+```
+
+We all remember where we were when Baker made his NFL debut on that fateful Thursday night – slicing and dicing the Jets secondary on his way to releasing those poor Bud Lights from bondage. However, Baker floundered in his subsequent starts, ranking among the other struggling rookie QBs in most passing metrics. But this all changed when the incumbent coaching staff was shown the door halfway through the 2018 season and in stepped Gregg Williams as interim HC with Freddie Kitchens as OC. In a matter of weeks, Baker separated himself from the other rookies and joined the likes of Drew Brees and Patrick Mahomes atop many NFL passing leaderboards. Although, I must note that Mayfield wasn’t perfect in the second half of 2018, especially when it came to his propensity to turn the ball over as the chart below indicates.
+
+```{r slope_2018, echo=FALSE}
+# Split out Baker's early season and late season data
+bake_early <- pass_18 %>%
+    filter(name=="B.Mayfield" & week < 9)
+bake_late <- pass_18 %>%
+    filter(name=="B.Mayfield" & week > 8)
+
+# Aggregate baker's stats for these two periods
+bake_early_agg <- aggup(bake_early)
+bake_late_agg <- aggup(bake_late)
+
+# Aggregate the full season data for nfl qb's (including baker)
+# Filter out guys with fewer than x dropbacks
+qbs_18 <- aggup(pass_18)
+qbs_18 <- filter(qbs_18, dropbacks>=100)
+
+# Function to calculate percentiles
+perc.rank <- function(x, xo)  length(x[x <= xo])/length(x)*100
+
+# Stat lists
+pos_stats <- names(qbs_18)[9:11]
+neg_stats <- names(qbs_18)[12:13]
+
+# Empty dataframe that will house baker's split data
+bake_splits <- data.frame(period=factor(),
+                          stat=factor(),
+                          perc=numeric())
+
+# Calculate Baker's percentiles by season split (for both pos and neg stats)
+for (i in pos_stats){
+    bake_splits <- rbind(bake_splits, 
+                         data.frame(period = "Weeks 1-8",
+                                    stat = i,
+                                    perc = perc.rank(qbs_18[[i]],
+                                                     bake_early_agg[[i]])))
+}
+for (i in neg_stats){
+    bake_splits <- rbind(bake_splits, 
+                         data.frame(period = "Weeks 1-8",
+                                    stat = i,
+                                    perc = 100 - perc.rank(qbs_18[[i]],
+                                                           bake_early_agg[[i]])))
+}
+for (i in pos_stats){
+    bake_splits <- rbind(bake_splits, 
+                         data.frame(period = "Weeks 9-17",
+                                    stat = i,
+                                    perc = perc.rank(qbs_18[[i]],
+                                                     bake_late_agg[[i]])))
+}
+for (i in neg_stats){
+    bake_splits <- rbind(bake_splits, 
+                         data.frame(period = "Weeks 9-17",
+                                    stat = i,
+                                    perc = 100 - perc.rank(qbs_18[[i]],
+                                                           bake_late_agg[[i]])))
+}
+
+# Create slope plot
+slope_2018 <- bake_splits %>%
+    ggplot(aes(x=period, y=perc, group = stat, label = stat)) + 
+    geom_line(size=5.5, color = "#000000") +
+    geom_line(data=filter(bake_splits, stat == "INT_rate"),
+              size=4, color="#5c3920") +
+    geom_line(data=filter(bake_splits, stat != "INT_rate"),
+              size=4, color="#fb4f14") +
+    geom_point(size=6, color="#000000") +
+    geom_text_repel(data=filter(bake_splits,
+                                period == "Weeks 1-8" &
+                                    stat %in% c("AYPA",
+                                                "TD_rate",
+                                                "epa_per_dropback")),
+    label = c("AYPA",
+              "EPA",
+              "Touchdowns"),
+    size = 4,
+    nudge_x = -0.3) + 
+    geom_text_repel(data=filter(bake_splits,
+                                period == "Weeks 9-17" &
+                                    stat %in% c("sack_rate",
+                                                "INT_rate")
+                                ),
+                    label = c("Interceptions", "Sacks"),
+                    size = 4,
+                    nudge_x = 0.3) + 
+    labs(title = "Upward Momentum: Mayfield's Ascendant Rookie Season",
+         x = NULL,
+         y = "2018 Percentile",
+         caption = "data from nflscrapR\nadjusted for total dropbacks (except AYPA)") +
+    scale_x_discrete(position = "top") +
+    ylim(0,100) +
+    theme_pff +
+    theme(panel.grid = element_blank(),
+          axis.text.x = element_text(size = 13, color = "black"),
+          axis.text.y = element_text(size = 12),
+          axis.title.y = element_text(size = 13))
+
+slope_2018
+```
+
+## 2019:
+If Mayfield finished 2018 as Dr. Jekyll, he kicked off the 2019 season as Mr. Hyde. After stumbling out of the gate against the Titans in week 1, Baker appeared to regain his footing with a surprisingly good outing against the high-flying Ravens in week 4. Unfortunately, the good times would not last long, and the wheels really fell off the following week when the Browns faced off against the upstart 49ers on MNF. This was supposed to be his big coming out party, instead, Baker pooped his pants for the world to see, turning the ball over three times on his way to posting an EPA per dropback of -1.0 (meaning the Browns gave up a full point to the Niners each time Mayfield dropped back to pass, not ideal). The debacle in San Francisco was not only the worst showing of Mayfield’s young NFL career, but also one of the worst single game performances of any quarterback over the past two seasons. 
+Baker and the Browns never seemed to truly bounce back from this drubbing by the 49ers. After another poor game against the vaunted Patriots defense in week 8, Baker finished out the season with a string of mediocre outings (excluding a solid performance against the hapless Dolphins secondary in week 12).
+
+Going into 2019, Mayfield was the unquestioned cream of his draft class – Lamar had yet to blossom, Rosen was run out of Arizona, and Allen/Darnold showed flashes but remained project QBs. One year and 16 games later, it seems we know less about Baker and his future in the NFL than we did a year ago. And the data appears to support this notion.
+
+Below, I have constructed a principal component analysis (PCA) in an effort to summarize several different passing statistics for the 2019 NFL season. PCA, in short, is a method to condense many possibly correlated variables down to a more digestible summary, allowing us to observe clusters of statistically similar observations, or quarterbacks in this case. Eight publicly available passing statistics were selected for this analysis and are represented by the dotted lines expanding from the origin. Basically, quarterbacks close to one another will have similar passing numbers and those furthest from the origin are the QBs generating the most unique stat lines (Jameis “1 of 1” Winston is truly in a class of his own). The directional positioning of each player is determined by the stats that essentially “defined” their 2019 season. Whereas studs like Lamar Jackson and Patrick Mahomes are positioned in the quadrant defined by high EPA’s and touchdown rates, Mayfield and his encircled cohort are most clearly described by their high sack/interception rates. Simply put, Baker Mayfield is no longer the slam dunk franchise quarterback he appeared to be a year ago.
+
+```{r PCA_2019, echo=FALSE}
+# Aggregate the full season data for nfl qb's (including baker)
+# Filter out guys with fewer than x dropbacks
+qbs_19 <- aggup(pass_19)
+qbs_19 <- filter(qbs_19, dropbacks >= 100)
+
+# Run PCA calculations
+PCA <- prcomp(qbs_19[c(6:13)], center = TRUE, scale = TRUE)
+PCAloadings <- data.frame(Variables = rownames(PCA$rotation), PCA$rotation)
+
+# Append PC1 and PC2 values for each QB
+qbs_19$PC1 <- PCA$x[,"PC1"]
+qbs_19$PC2 <- PCA$x[,"PC2"]
+
+# Temporary tibble created to append arrow data to qbs_19
+temp <- tibble(name = as.character(c("Y/A",
+                                     "Cmp%",
+                                     "Y/G",
+                                     "AY/A",
+                                     "EPA/\ndropback",
+                                     "TD%",
+                                     "Int%",
+                                     "Sack%")),
+               dropbacks = 0,
+               primary = "#787878",
+               PC1 = PCAloadings$PC1 * 5.5,
+               PC2 = PCAloadings$PC2 * 5.5)
+
+# Further trim qbs_19 to make plot look better, drop unneeded columns,
+# bind rows from temp to qbs_19 and create new tibble
+qbs_19_trimmed <- qbs_19 %>%
+    filter(dropbacks >= 350) %>%
+    select(name, dropbacks, primary, PC1, PC2) %>%
+    bind_rows(temp)
+
+
+# Plot PCA
+PCA_2019 <- qbs_19_trimmed %>%
+    ggplot(aes(x=PC1, y=PC2)) +
+    # Add variable lines from origin
+    geom_segment(data = filter(qbs_19_trimmed,
+                               dropbacks == 0),
+                 aes(x = 0, y = 0,
+                     xend = (PC1),
+                     yend = (PC2)),
+                 color="#787878",
+                 linetype = "dashed",
+                 alpha = 0.5,
+                 arrow = arrow(length = unit(0.2,"cm"))) +
+    # Add points
+    geom_point(aes(color=primary),
+               data = filter(qbs_19_trimmed, dropbacks > 0)) +
+    # Add labels for everything except Baker (including variable names)
+    geom_text_repel(data = filter(qbs_19_trimmed, name != "B.Mayfield"),
+                    aes(color=primary,
+                        label=name)) +
+    # Add label for Baker, need separate line because it's so different
+    geom_text_repel(data = filter(qbs_19_trimmed, name == "B.Mayfield"),
+                    aes(color=primary,
+                        label = name),
+                    fontface = "bold",
+                    size = 6,
+                    segment.color = "Black",
+                    nudge_x = -0.75,
+                    nudge_y = -0.50) +
+    # Add shape around Baker's cohort
+    geom_encircle(aes(x=PC1,y=PC2),
+                  data = filter(qbs_19_trimmed, name %in% c("B.Mayfield",
+                                                            "M.Trubisky",
+                                                            "K.Allen",
+                                                            "J.Allen",
+                                                            "S.Darnold",
+                                                            "D.Jones",
+                                                            "A.Dalton",
+                                                            "K.Murray"))) +
+    
+    # needed to automatically adjust the color of scatter points
+    scale_color_identity() +
+    # PFF theme
+    theme_pff +
+    # Cosmetics
+    theme(panel.grid=element_blank()) +
+    labs(title = "Clustered Among the Young (and Andy Dalton)",
+         subtitle = "principal component analysis, 2019 passing stats",
+         caption = "data from nflscrapR\nminimum 350 dropbacks")
+
+PCA_2019
+```
+
+2020 is shaping up to be a decisive year for the young QB. Will Baker regain his mojo in the coming months or are the Browns destined to continue their never-ending quest to find stability at the quarterback position? I, for one, can’t wait to watch the drama unfold.
+
+## Conclusion:
+To this point, I’ve established that Baker has been inconsistent in the NFL. However, this is hardly groundbreaking analysis as any casual NFL fan could have told you that the Browns have seen highs and lows with Mayfield under center. The important questions are *why* Baker fluctuates as much as he does and what can be expected from the young QB going into 2020 and beyond? Can Mayfield return to the highs of late 2018 or is he destined to fall flat on his face like he did to kick off the 2019 campaign? Will he ever find consistency in his game or is he destined to join the likes of Jameis or Fitzmagic – regularly oscillating between greatness and mediocrity?
+
+Stay tuned for part two of this analysis, where I will attempt to answer these questions by grinding the tape and examining situational data to figure out how Freddie brought out primetime Baker, what went wrong in 2019, and what we should expect from Mayfield and the Browns offense when Kevin Stefanski takes the reins in 2020.
