@@ -6,10 +6,10 @@ library(tidyverse)
 library(ggrepel)
 
 # Theme for plots
-source("theme_pff.R")
+source("Code/theme_pff.R")
 
 # Import functions that load/process data
-source("Baker_functions.R")
+source("Code/Baker_functions.R")
 
 # Load in 2018 passing data
 pass_18 <- load.transform.trim(season=2018)
@@ -89,4 +89,4 @@ qbs_18 %>%
     # cosmetic adjustments
     theme(panel.grid=element_blank())
 
-ggsave("Scatter_2018.png", dpi=2000, height=7, width=7)
+ggsave("Images/Scatter_2018.png", dpi=2000, height=7, width=7)

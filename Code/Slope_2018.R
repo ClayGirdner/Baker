@@ -6,10 +6,10 @@ library(tidyverse)
 library(ggrepel)
 
 # Theme for plots
-source("theme_pff.R")
+source("Code/theme_pff.R")
 
 # Import functions that load/process data
-source("Baker_functions.R")
+source("Code/Baker_functions.R")
 
 # Load in 2018 passing data
 pass_18 <- load.transform.trim(season=2018)
@@ -82,11 +82,11 @@ bake_splits %>%
     geom_point(size=6, color="#000000") +
     geom_text_repel(data=filter(bake_splits,
                                 period == "Weeks 1-8" &
-                                    stat %in% c("AYPA",
+                                    stat %in% c("aDOT",
                                                 "TD_rate",
                                                 "epa_per_dropback")
     ),
-    label = c("AYPA",
+    label = c("aDOT",
               "EPA",
               "Touchdowns"),
     size = 4,
@@ -102,7 +102,7 @@ bake_splits %>%
     labs(title = "Upward Momentum: Mayfield's Ascendant Rookie Season",
          x = NULL,
          y = "2018 Percentile",
-         caption = "data from nflscrapR\nadjusted for total dropbacks (except AYPA)") +
+         caption = "data from nflscrapR\nadjusted for total dropbacks (except aDOT)") +
     scale_x_discrete(position = "top") +
     ylim(0,100) +
     theme_pff +
@@ -111,4 +111,4 @@ bake_splits %>%
           axis.text.y = element_text(size = 12),
           axis.title.y = element_text(size = 13))
 
-ggsave("Slope_2018.png", dpi=2000, height=7, width=7)
+ggsave("Images/Slope_2018.png", dpi=2000, height=7, width=7)

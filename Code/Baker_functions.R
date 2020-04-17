@@ -70,7 +70,7 @@ aggup <- function(data) {
                         YPA = sum(yards_gained)/attempts,
                         comp_percentage = sum(complete_pass)/attempts,
                         YPG = sum(yards_gained)/games,
-                        AYPA = sum(air_yards, na.rm = TRUE)/attempts,
+                        aDOT = sum(air_yards, na.rm = TRUE)/attempts,
                         epa_per_dropback = sum(epa)/dropbacks,
                         TD_rate = sum(pass_touchdown)/dropbacks,
                         INT_rate = sum(interception)/dropbacks,

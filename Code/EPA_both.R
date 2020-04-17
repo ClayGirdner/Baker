@@ -6,10 +6,10 @@ library(ggimage)
 library(ggrepel)
 
 # Theme for plots
-source("theme_pff.R")
+source("Code/theme_pff.R")
 
 # Import functions that load/process data
-source("Baker_functions.R")
+source("Code/Baker_functions.R")
 
 # Load in passing data for 2018/2019 and combine
 pass_18 <- load.transform.trim(season=2018)
@@ -57,12 +57,12 @@ bake_both_agg %>%
     scale_fill_identity() + 
     scale_color_identity() +
     facet_grid(. ~ season, switch="x") +
-    theme_pff +
-    theme(panel.grid=element_blank(),
-          strip.placement="outside")+
     labs(title = "Mr. Mayfield's Wild Ride",
          subtitle = "EPA per dropback",
          caption = "data from nflscrapR",
          x = "Week",
-         y = NULL)
-ggsave("EPA_both.png", dpi=2000, height=6, width=9)
+         y = NULL) + 
+    theme_pff +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank())
+ggsave("Images/EPA_both.png", dpi=2000, height=6, width=9)

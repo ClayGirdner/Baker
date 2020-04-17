@@ -32,7 +32,7 @@ qbs_19$PC2 <- PCA$x[,"PC2"]
 temp <- tibble(name = as.character(c("Y/A",
                                      "Cmp%",
                                      "Y/G",
-                                     "AY/A",
+                                     "aDOT",
                                      "EPA/\ndropback",
                                      "TD%",
                                      "Int%",
