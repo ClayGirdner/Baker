@@ -49,9 +49,13 @@ load.transform.trim <- function(season){
             play = 1
         )
     
+    # Fix discrepancy on G.Minshew and G.Minshew II
     
     # trim to passing data
     pass_data <- filter(rp, pass==1 & qb_spike==0)
+    
+    # Fix discrepancy on G.Minshew and G.Minshew II
+    pass_data$name[pass_data$name == "G.Minshew II"] <- "G.Minshew"
     
     return(pass_data)
 }
