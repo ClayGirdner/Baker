@@ -95,7 +95,7 @@ qbs_19_trimmed %>%
     # PFF theme
     theme_pff +
     # Cosmetics
-    theme(panel.grid=element_blank()) +
+    theme(panel.grid.major = element_blank()) +
     labs(title = "Clustered Among the Young (and Andy Dalton)",
          subtitle = "principal component analysis, 2019 passing stats",
          caption = "data from nflscrapR\nminimum 350 dropbacks")

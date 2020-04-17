@@ -106,7 +106,7 @@ bake_splits %>%
     scale_x_discrete(position = "top") +
     ylim(0,100) +
     theme_pff +
-    theme(panel.grid = element_blank(),
+    theme(panel.grid.major = element_blank(),
           axis.text.x = element_text(size = 13, color = "black"),
           axis.text.y = element_text(size = 12),
           axis.title.y = element_text(size = 13))

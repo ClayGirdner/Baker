@@ -87,6 +87,6 @@ qbs_18 %>%
     # Pff theme
     theme_pff +
     # cosmetic adjustments
-    theme(panel.grid=element_blank())
+    theme(panel.grid.major = element_blank())
 
 ggsave("Images/Scatter_2018.png", dpi=2000, height=7, width=7)

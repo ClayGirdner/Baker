@@ -57,6 +57,6 @@ sd_both %>%
     # Pff theme
     theme_pff +
     # cosmetic adjustments
-    theme(panel.grid=element_blank())
+    theme(panel.grid.major = element_blank())
 
 ggsave("Images/vol_scatter.png", dpi=2000, height=7, width=7)
