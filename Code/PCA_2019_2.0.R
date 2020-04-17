@@ -7,10 +7,10 @@ library(ggrepel)
 library(ggalt)
 
 # Theme for plots
-source("theme_pff.R")
+source("Code/theme_pff.R")
 
 # Import functions that load/process data
-source("Baker_functions.R")
+source("Code/Baker_functions.R")
 
 # Load in 2019 passing data (nflscrapR)
 pass_19 <- load.transform.trim(season = 2019)
@@ -100,4 +100,4 @@ qbs_19_trimmed %>%
          subtitle = "principal component analysis, 2019 passing stats",
          caption = "data from nflscrapR\nminimum 350 dropbacks")
 
-ggsave("PCA_2019.png", dpi=2000, height=7, width=7)
+ggsave("Images/PCA_2019.png", dpi=2000, height=7, width=7)
