@@ -13,7 +13,7 @@ source("Code/theme_pff.R")
 source("Code/Baker_functions.R")
 
 # Load in 2019 passing data (nflscrapR)
-pass_19 <- load.transform.trim(season = 2019)
+pass_19 <- load.transform.trim(2019)
 
 # Aggregate the full season data for nfl qb's (including baker)
 # Filter out guys with fewer than x dropbacks
@@ -100,4 +100,4 @@ qbs_19_trimmed %>%
          subtitle = "principal component analysis, 2019 passing stats",
          caption = "data from nflscrapR\nminimum 350 dropbacks")
 
-ggsave("Images/PCA_2019.png", dpi=2000, height=7, width=7)
+ggsave("Images/QB_PCA_2019.png", dpi=2000, height=7, width=7)
