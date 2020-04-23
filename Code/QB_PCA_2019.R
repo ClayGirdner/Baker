@@ -49,6 +49,8 @@ qbs_19_trimmed <- qbs_19 %>%
     select(name, dropbacks, primary, PC1, PC2) %>%
     bind_rows(temp)
 
+# Calculate % of variance for each PC
+pov <- PCA$sdev^2/sum(PCA$sdev^2)
 
 # Plot PCA
 qbs_19_trimmed %>%
@@ -98,6 +100,8 @@ qbs_19_trimmed %>%
     theme(panel.grid.major = element_blank()) +
     labs(title = "Clustered Among the Young (and Andy Dalton)",
          subtitle = "principal component analysis, 2019 passing stats",
-         caption = "data from nflscrapR\nminimum 350 dropbacks")
+         caption = "data from nflscrapR\nminimum 350 dropbacks",
+         x = paste0("PC1 (", round(pov[1]*100, digits = 0), "% of variance)"),
+         y = paste0("PC2 (", round(pov[2]*100, digits = 0), "% of variance)"))
 
 ggsave("Images/QB_PCA_2019.png", dpi=2000, height=6, width=9)
