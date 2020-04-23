@@ -46,6 +46,10 @@ SIS_2019_trimmed <- SIS_2019 %>%
     select(team, dropbacks, url, PC1, PC2) %>%
     bind_rows(temp)
 
+# Calculate % of variance for each PC
+pov <- PCA$sdev^2/sum(PCA$sdev^2)
+
+
 # Plot PCA
 SIS_2019_trimmed %>%
     ggplot(aes(x=PC1, y=PC2)) +
@@ -79,6 +83,8 @@ SIS_2019_trimmed %>%
     theme(panel.grid.major = element_blank()) +
     labs(title = "Basic Brownies",
          subtitle = "principal component analysis, 2019 passing schemes",
-         caption = "data from nflscrapR and Sports Info Solutions")
+         caption = "data from nflscrapR and Sports Info Solutions",
+         x = paste0("PC1 (", round(pov[1]*100, digits = 0), "% of variance)"),
+         y = paste0("PC2 (", round(pov[2]*100, digits = 0), "% of variance)"))
 
 ggsave("Images/Off_PCA_2019.png", dpi=2000, height=6, width=9)
