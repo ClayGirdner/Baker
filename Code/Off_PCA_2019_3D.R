@@ -24,7 +24,7 @@ SIS_2019 <- left_join(SIS_2019, nfl_logos[,c("mascot", "url")], by = c("team" = 
 PCA <- prcomp(SIS_2019[c(25:31)], center = TRUE, scale = TRUE)
 PCAloadings <- data.frame(Variables = rownames(PCA$rotation), PCA$rotation)
 
-# Append PC1 and PC2 values for each QB
+# Append PC values
 SIS_2019$PC1 <- PCA$x[,"PC1"]
 SIS_2019$PC2 <- PCA$x[,"PC2"]
 SIS_2019$PC3 <- PCA$x[,"PC3"]
