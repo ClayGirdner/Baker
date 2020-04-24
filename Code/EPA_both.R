@@ -65,4 +65,4 @@ bake_both_agg %>%
     theme_pff +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank())
-ggsave("Images/EPA_both.png", dpi=2000, height=6, width=9)
+ggsave("Images/EPA_both.png", height=6, width=9)

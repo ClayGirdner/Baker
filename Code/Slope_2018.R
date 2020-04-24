@@ -111,4 +111,4 @@ bake_splits %>%
           axis.text.y = element_text(size = 12),
           axis.title.y = element_text(size = 13))
 
-ggsave("Images/slope_2018.png", dpi=2000, height=7, width=7)
+ggsave("Images/slope_2018.png", height=7, width=7)

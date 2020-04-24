@@ -89,4 +89,4 @@ SIS_2019_trimmed %>%
          subtitle = "principal component analysis, 2019 passing schemes",
          caption = "data from nflscrapR and Sports Info Solutions")
 
-ggsave("Images/Off_PCA_2019_3D.png", dpi=2000, height=6, width=9)
+ggsave("Images/Off_PCA_2019_3D.png", height=6, width=9)

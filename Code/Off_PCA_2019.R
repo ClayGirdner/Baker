@@ -87,4 +87,4 @@ SIS_2019_trimmed %>%
          x = paste0("PC1 (", round(pov[1]*100, digits = 0), "% of variance)"),
          y = paste0("PC2 (", round(pov[2]*100, digits = 0), "% of variance)"))
 
-ggsave("Images/Off_PCA_2019.png", dpi=2000, height=6, width=9)
+ggsave("Images/Off_PCA_2019.png", height=6, width=9)

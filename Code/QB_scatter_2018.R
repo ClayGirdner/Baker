@@ -89,4 +89,4 @@ qbs_18 %>%
     # cosmetic adjustments
     theme(panel.grid.major = element_blank())
 
-ggsave("Images/QB_scatter_2018.png", dpi=2000, height=7, width=8)
+ggsave("Images/QB_scatter_2018.png", height=7, width=8)
