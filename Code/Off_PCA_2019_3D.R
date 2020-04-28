@@ -49,6 +49,9 @@ SIS_2019_trimmed <- SIS_2019 %>%
     select(team, dropbacks, url, PC1, PC2, PC3) %>%
     bind_rows(temp)
 
+# Calculate % of variance for each PC
+pov <- PCA$sdev^2/sum(PCA$sdev^2)
+
 # Plot PCA
 SIS_2019_trimmed %>%
     ggplot(aes(x=PC1, y=PC2)) +
